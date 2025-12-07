@@ -1,59 +1,229 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Overdue Game Notification & User Ban System (Laravel Edition)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+This document explains the overdue game tracking, notification system, and user ban functionality as implemented in the **Gaming Store Laravel application**.
 
-## About Laravel
+## Features Overview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 1. Overdue Game Tracking
+- Automatically detects games that are past their return date
+- Marks games as overdue in the database
+- Sends immediate notifications to borrowers using Laravel's notification system
+- Alerts admins about overdue users
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 2. User Notification System
+- **Borrowers**: Receive warnings about overdue games
+- **Admins**: Get notified about users with overdue games
+- **Real-time**: Notifications update instantly in the dashboard
+- **Persistent**: Notifications are stored and can be marked as read
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 3. Admin User Management
+- View all users and their status
+- See users with overdue games highlighted
+- Ban users for repeated violations
+- Unban users when appropriate
+- View admin-specific notifications
 
-## Learning Laravel
+### 4. User Ban System
+- Admins can ban users for overdue games or other violations
+- Banned users cannot log in or access the platform
+- Ban reasons are recorded and tracked
+- Users can be unbanned by admins
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Database Changes
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### New Fields Added
 
-## Laravel Sponsors
+#### users Table
+- `is_banned` (boolean): Whether the user is banned
+- `banned_at` (datetime): When the user was banned
+- `banned_by` (unsignedBigInteger): Admin ID who banned the user
+- `ban_reason` (text): Reason for the ban
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+#### game_lendings Table
+- `is_overdue` (boolean): Whether the game is overdue
+- `overdue_notification_sent` (boolean): Whether overdue notification was sent
 
-### Premium Partners
+#### notifications Table
+- `notification_type` (string): Type of notification ('overdue', 'admin', 'general')
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+#### admin_notifications Table
+- Stores admin-specific notifications
+- Links to related users when applicable
+- Tracks read/unread status
 
-## Contributing
+## How It Works
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 1. Automatic Overdue Detection
+- A Laravel service or job (e.g. scheduled task or observer) checks for overdue games.
+- This can be triggered via a scheduler (`php artisan schedule:run`) or via middleware on user activity.
 
-## Code of Conduct
+### 2. Overdue Check Process
+1. Finds games past their return date
+2. Marks them as overdue
+3. Sends notifications to borrowers (using Laravel events/notifications)
+4. Alerts admins about overdue users
+5. Updates database flags
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 3. Notification Flow
+```
+Game becomes overdue → Borrower notification + Admin notification
+↓
+Borrower sees warning on lend_games page
+↓
+Admin sees overdue user in admin panel
+↓
+Admin can ban user if necessary
+```
 
-## Security Vulnerabilities
+## Setup Instructions
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 1. Run Database Migrations
+```bash
+php artisan migrate
+```
 
-## License
+### 2. Restart Application
+The new functionality is instantly available after migration and code deployment.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 3. Test the System
+1. Create a game lending with a short duration (1 day) using the web UI or Laravel tinker
+2. Wait for it to become overdue or manually set it for testing
+3. Check notifications for both borrower and admin
+4. Test ban/unban functionality in the admin panel
+
+## Admin Features
+
+### User Management (`/admin/users`)
+- **Overview**: See all users and their status
+- **Overdue Users**: Highlighted section showing users with overdue games
+- **Ban Actions**: Ban/unban users with reason tracking
+- **Overdue Check**: Manual button to check for overdue games
+
+### Admin Notifications (`/admin/notifications`)
+- **System Alerts**: Overdue user notifications
+- **Read Status**: Mark notifications as read
+- **User Context**: See which user each notification relates to
+
+### Quick Actions
+- **Check Overdue**: Manually trigger overdue detection
+- **Manage Users**: Direct access to user management
+- **View Notifications**: Access admin notification center
+
+## User Experience
+
+### For Regular Users
+- **Notifications Page**: View all notifications (`/notifications`)
+- **Overdue Warnings**: Prominent warnings on lend_games page
+- **Clear Notifications**: Mark individual or all notifications as read
+
+### For Borrowers with Overdue Games
+- **Immediate Warning**: Flash message when overdue
+- **Persistent Alert**: Warning banner on lend_games page
+- **Notification**: Stored notification about overdue status
+
+## API & Web Routes
+
+### Admin Routes (web or API)
+- `GET /admin/users` - User management interface
+- `POST /admin/ban-user/{user}` - Ban a user
+- `POST /admin/unban-user/{user}` - Unban a user
+- `GET /admin/notifications` - Admin notifications
+- `POST /admin/notification/{id}/read` - Mark notification as read
+- `POST /admin/check-overdue` - Manually check for overdue games
+
+### User Routes
+- `GET /notifications` - User notifications
+- `POST /notification/{id}/read` - Mark notification as read
+- `POST /notifications/clear` - Clear all notifications
+
+### Test and Utility Routes (Development Only)
+- `POST /test/create-overdue/{lending}` - Create overdue game for testing
+
+## Configuration
+
+### Automatic Checks
+- Overdue checks can be scheduled using Laravel's Task Scheduling (`app/Console/Kernel.php`)
+- No additional configuration needed for middleware/service-based checks
+
+### Notification Types
+- `overdue`: Game overdue warnings
+- `admin`: Administrative actions
+- `general`: General system notifications
+
+## Security Features
+
+### User Ban Protection
+- Admins cannot ban other admins
+- Ban reasons are required and logged
+- Banned users cannot access any protected routes (middleware check)
+- `is_banned` field and related logic are enforced throughout the app
+
+### Access Control
+- Admin routes require admin privileges (via middleware)
+- User notifications are user-specific
+- Admin notifications are admin-only
+
+## Monitoring and Maintenance
+
+### Regular Tasks
+1. **Daily**: Check admin notifications for overdue users
+2. **Weekly**: Review banned users and consider unbans
+3. **Monthly**: Analyze overdue patterns and adjust policies
+
+### Database Maintenance
+- Notifications accumulate over time
+- Consider archiving old notifications
+- Monitor database size growth
+
+## Troubleshooting
+
+### Common Issues
+
+#### Migration Errors
+- Ensure database connection and credentials are correct in `.env`
+- Check Laravel version compatibility
+- Verify table structure before migration
+
+#### Notifications Not Working
+- Confirm overdue game checks are running (scheduler or middleware)
+- Verify notification tables exist after migration
+- Check user authentication status
+
+#### Ban System Issues
+- Ensure `is_banned` field exists in User table
+- Confirm middleware protecting routes for banned users
+- Check admin privileges setup
+
+### Debug Mode
+Enable debug logging to see overdue check operations:
+```php
+// In config/logging.php, set log level to 'debug'
+```
+
+## Future Enhancements
+
+### Potential Improvements
+1. **Email Notifications**: Send overdue warnings via email (Laravel notifications/mail)
+2. **SMS Alerts**: Text message reminders for overdue games
+3. **Automatic Bans**: Auto-ban after multiple overdue incidents
+4. **Grace Periods**: Configurable grace periods before overdue
+5. **Fine System**: Monetary penalties for overdue games
+6. **Escalation**: Progressive warning system
+
+### Integration Ideas
+1. **Calendar Integration**: Sync return dates with user calendars
+2. **Mobile App**: Push notifications for mobile users
+3. **Analytics Dashboard**: Overdue statistics and trends
+4. **Automated Reports**: Daily/weekly overdue summaries
+
+## Support
+
+For issues or questions about the overdue system:
+1. Check this documentation
+2. Review migration output in terminal
+3. Check Laravel logs for errors (`storage/logs`)
+4. Verify database schema matches expectations
+
+---
+
+**Note**: This system is designed to work seamlessly and securely in a Laravel application. Regular monitoring and maintenance will ensure optimal performance and a good user/admin experience.
